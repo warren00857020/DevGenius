@@ -2,43 +2,27 @@
 import { unifiedOperation, processMultiFiles } from '../testApiService';
 //import { unifiedOperation, processMultiFiles } from '../apiService';
 import { FileRecord } from '../types';
-import React from 'react';
+import { useFileStore } from '../store/useFileStore';
 
-export function useBackendOperations(
-  setFiles: React.Dispatch<React.SetStateAction<FileRecord[]>>,
-  setSelectedFile: React.Dispatch<React.SetStateAction<FileRecord | null>>
-) {
+export function useBackendOperations() {
+  const updateFile = useFileStore((state) => state.updateFile);
+
   const sendFilesToBackend = async (file: FileRecord, prompt: string) => {
     const fileToSend = `### User Prompt:\n${prompt}\n\n### File: ${file.fileName}\n\n${file.oldCode}`;
     try {
       const result = await unifiedOperation(fileToSend);
       if (result.result) {
-        setFiles(prevFiles =>
-          prevFiles.map(f =>
-            f.fileName === file.fileName
-              ? {
-                  ...f,
-                  newCode: result.result.converted_code || f.oldCode,
-                  advice: result.result.suggestions,
-                  loading: false,
-                }
-              : f
-          )
-        );
-        setSelectedFile(prev =>
-          prev && prev.fileName === file.fileName
-            ? { ...prev, newCode: result.result.converted_code || prev.oldCode, advice: result.result.suggestions }
-            : prev
-        );
+        updateFile(file.fileName, {
+          newCode: result.result.converted_code || file.newCode,
+          advice: result.result.suggestions,
+          loading: false,
+        });
       }
     } catch (error) {
-      setFiles(prevFiles =>
-        prevFiles.map(f =>
-          f.fileName === file.fileName
-            ? { ...f, error: "傳送檔案失敗", loading: false }
-            : f
-        )
-      );
+      updateFile(file.fileName, {
+        error: "AI Rethink 失敗",
+        loading: false,
+      });
     }
   };
 
@@ -51,27 +35,29 @@ export function useBackendOperations(
     try {
       const result = await processMultiFiles(prompt, filesToSend);
       if (result.files && Array.isArray(result.files)) {
-        const updatedFiles = files.map(file => {
+        // ✅ 用迴圈逐個更新
+        files.forEach(file => {
           const fileNameOnly = file.fileName.split('/').pop();
           const fileResult = result.files.find((res: any) => res.file_name === fileNameOnly);
+          
           if (fileResult) {
-            return {
-              ...file,
+            updateFile(file.fileName, {
               newCode: fileResult.content,
               advice: Array.isArray(fileResult.suggestions)
                 ? fileResult.suggestions.join("\n")
                 : fileResult.suggestions,
               loading: false,
-            };
+            });
           }
-          return file;
         });
-        setFiles(updatedFiles);
       }
     } catch (error) {
-      setFiles(prevFiles =>
-        prevFiles.map(f => ({ ...f, error: "批次處理失敗", loading: false }))
-      );
+      files.forEach(file => {
+        updateFile(file.fileName, {
+          error: "批次處理失敗",
+          loading: false,
+        });
+      });
     }
   };
 

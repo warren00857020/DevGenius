@@ -2,68 +2,35 @@
 import { useState } from 'react';
 import { useFileUpload } from './useFileUpload';
 import { useBackendOperations } from './useBackendOperations';
-import { useProcessManager } from './useProcessManager';
 import { useDeploymentOperations } from './useDeploymentOperations';
 import { useAIRethink } from './useAIRethink';
-import { FileRecord } from '../types';
+// 🆕 引入 Store
+import { useFileStore } from '../store/useFileStore';
+import { useProcessStore } from '../store/useProcessStore';
 
 export function useProjectManager() {
-  // 檔案上傳相關
-  const { files, setFiles, pendingFiles, handleProjectUpload } = useFileUpload();
+  // 🆕 從 Store 取得檔案相關資料
+  const files = useFileStore((state) => state.files);
+  const pendingFiles = useFileStore((state) => state.pendingFiles);
 
-  // 選取檔案與其他 state
-  const [selectedFile, setSelectedFile] = useState<FileRecord | null>(null);
+  const setIsUpdating = useProcessStore((state) => state.setIsUpdating);
+  const setProgress = useProcessStore((state) => state.setProgress);
+  const incrementProgress = useProcessStore((state) => state.incrementProgress);
+
+  // 其他 state（暫時還用 useState，後續可以繼續重構）
   const [advice, setAdvice] = useState<string>('');
 
+  // 檔案上傳相關
+  const { handleProjectUpload } = useFileUpload();
   // 與後端溝通的功能
-  const { sendFilesToBackend, sendFilesToMultiBackend } = useBackendOperations(setFiles, setSelectedFile);
-
-  // 處理進度相關狀態
-  const {
-    isTesting,
-    setIsTesting,
-    progress,
-    setProgress,
-    testProgress,
-    setTestProgress,
-    testResult,
-    setTestResult,
-    isUpdating,
-    setIsUpdating,
-    startProcessing,
-    finishProcessing,
-  } = useProcessManager();
-
+  const { sendFilesToBackend, sendFilesToMultiBackend } = useBackendOperations();
   // AI Rethink
-  const { handleConfirmRethink } = useAIRethink(
-    selectedFile,
-    setFiles,
-    setSelectedFile,
-    setIsUpdating,
-    setProgress
-  );
-
-  // 先定義 log 與 Modal 相關 state
-  const [fileLogs, setFileLogs] = useState<{ [fileName: string]: string }>({});
-  const [logModal, setLogModal] = useState<{ isOpen: boolean; log: string; fileName: string }>({
-    isOpen: false,
-    log: '',
-    fileName: ''
-  });
-
-  const openLogModal = (fileName: string) => {
-    setLogModal({ isOpen: true, log: fileLogs[fileName], fileName });
-  };
-
-  const closeLogModal = () => {
-    setLogModal({ isOpen: false, log: '', fileName: '' });
-  };
-
-  // 現在 setFileLogs 已經定義好，可以傳入 useDeploymentOperations
+  const { handleConfirmRethink } = useAIRethink();
+  // 部署相關
   const {
-    handleGenerateConfigs,  // 產生配置檔與自動部署
-    handleTestProject,      // 測試專案（UnitTest、部署 GKE）
-  } = useDeploymentOperations(files, setFiles, setFileLogs, setIsTesting, setTestProgress, setTestResult);
+    handleGenerateConfigs,
+    handleTestProject,
+  } = useDeploymentOperations();
 
   // 處理 Prompt 確認
   const handleConfirmPrompt = async (prompt: string, processingMode: string) => {
@@ -79,7 +46,7 @@ export function useProjectManager() {
         await Promise.all(
           files.map(async (file) => {
             await sendFilesToBackend(file, prompt);
-            setProgress(prev => prev + 1);
+            incrementProgress();
           })
         );
       } else if (processingMode === "multi") {
@@ -93,34 +60,13 @@ export function useProjectManager() {
   };
 
   return {
-    files,
-    setFiles,
     pendingFiles,
-    selectedFile,
-    setSelectedFile,
     advice,
     setAdvice,
     handleProjectUpload,
     sendFilesToBackend,
     sendFilesToMultiBackend,
     handleConfirmPrompt,
-    isTesting,
-    setIsTesting,
-    progress,
-    setProgress,
-    testProgress,
-    setTestProgress,
-    testResult,
-    setTestResult,
-    isUpdating,
-    setIsUpdating,
-    startProcessing,
-    finishProcessing,
-    fileLogs,
-    setFileLogs,
-    logModal,
-    openLogModal,
-    closeLogModal,
     handleConfirmRethink,
     handleGenerateConfigs,
     handleTestProject,
