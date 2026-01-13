@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { FileRecord } from '../types';
+// 🆕 引入 Zustand Store
+import { useFileStore } from '../store/useFileStore';
 
-interface FileListProps {
-  files: FileRecord[];
-  onSelectFile: (fileRecord: FileRecord) => void;
-}
+// ❌ 不再需要 props！
+// interface FileListProps {
+//   files: FileRecord[];
+//   onSelectFile: (fileRecord: FileRecord) => void;
+// }
 
 interface FileTreeNode {
   name: string;
@@ -42,7 +45,17 @@ const buildFileTree = (fileList: FileRecord[]): FileTreeNode[] => {
   return tree;
 };
 
-const FileList: React.FC<FileListProps> = ({ files, onSelectFile }) => {
+// 🆕 不再接收 props！直接從 Store 拿資料
+const FileList: React.FC = () => {
+  // 🎣 從 Store 取得需要的資料和方法
+  const files = useFileStore((state) => state.files);
+  const selectFile = useFileStore((state) => state.selectFile);
+
+  // 💡 說明：
+  // - files: 從 store 取得檔案列表
+  // - selectFile: 從 store 取得選擇檔案的方法
+  // - 不需要透過 props 傳遞了！
+
   const [expandedFolders, setExpandedFolders] = useState<{ [key: string]: boolean }>({});
   const fileTree = buildFileTree(files);
 
@@ -74,8 +87,9 @@ const FileList: React.FC<FileListProps> = ({ files, onSelectFile }) => {
                 {expandedFolders[node.path] ? '📂' : '📁'} {node.name}
               </div>
             ) : (
+              // 🆕 改用 Store 的 selectFile 方法
               <button
-                onClick={() => fileData && onSelectFile(fileData)}
+                onClick={() => fileData && selectFile(fileData)}
                 style={{
                   background: 'none',
                   border: 'none',
