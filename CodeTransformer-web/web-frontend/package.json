@@ -18,7 +18,8 @@
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.3",
     "react-split-pane": "^0.1.92",
-    "styled-components": "^6.1.14"
+    "styled-components": "^6.1.14",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
